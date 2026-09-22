@@ -1,0 +1,806 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Englert Inventory</title>
+<style>
+  :root {
+    --amber: #FAC775; --amber-dark: #633806;
+    --green-light: #E1F5EE; --green-dark: #085041;
+    --gray-light: #F5F5F3; --gray-med: #888780;
+    --border: #CCCCC4; --black: #1a1a18;
+    --red: #A32D2D; --red-light: #FCEBEB;
+    --blue: #1a4a8a; --blue-light: #E8F0FC;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, Helvetica, sans-serif; background: #f0efe9; min-height: 100vh; color: var(--black); }
+  .header { background: var(--amber); padding: 14px 16px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; }
+  .header h1 { font-size: 17px; font-weight: 700; color: var(--amber-dark); }
+  .nav-btn { background: var(--amber-dark); color: var(--amber); border: none; border-radius: 7px; padding: 7px 12px; font-size: 12px; font-weight: 600; cursor: pointer; }
+  .bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; background: white; border-top: 1px solid var(--border); display: flex; padding-bottom: env(safe-area-inset-bottom, 0px); z-index: 100; }
+  .bottom-nav button { flex: 1; border: none; background: none; padding: 10px 4px 8px; font-size: 10px; color: var(--gray-med); cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 3px; }
+  .bottom-nav button.active { color: var(--green-dark); font-weight: 600; }
+  .bnav-icon { font-size: 20px; line-height: 1; }
+  .view { display: none; padding: 16px 16px 90px; }
+  .view.active { display: block; }
+  .card { background: white; border-radius: 12px; border: 1px solid var(--border); padding: 16px; margin-bottom: 12px; }
+  .card-title { font-size: 11px; color: var(--gray-med); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600; }
+  .section-header { font-size: 15px; font-weight: 700; color: var(--black); margin-bottom: 12px; margin-top: 4px; }
+  .input-group { margin-bottom: 12px; }
+  .input-group label { font-size: 12px; color: var(--gray-med); display: block; margin-bottom: 4px; font-weight: 500; }
+  .input-group input, .input-group select { width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 15px; background: white; color: var(--black); outline: none; }
+  .input-group input:focus, .input-group select:focus { border-color: var(--green-dark); }
+  .btn-primary { width: 100%; background: var(--green-dark); color: white; border: none; border-radius: 10px; padding: 14px; font-size: 16px; font-weight: 700; cursor: pointer; margin-top: 4px; }
+  .btn-secondary { width: 100%; background: var(--blue-light); color: var(--blue); border: 1px solid var(--blue); border-radius: 10px; padding: 12px; font-size: 14px; font-weight: 600; cursor: pointer; margin-top: 8px; }
+  .btn-danger { width: 100%; background: var(--red-light); color: var(--red); border: 1px solid var(--red); border-radius: 10px; padding: 12px; font-size: 14px; font-weight: 600; cursor: pointer; margin-top: 8px; }
+  .btn-amber { width: 100%; background: var(--amber); color: var(--amber-dark); border: none; border-radius: 10px; padding: 14px; font-size: 15px; font-weight: 700; cursor: pointer; margin-top: 8px; }
+  .back-btn { background: none; border: none; color: var(--amber-dark); font-size: 14px; font-weight: 600; cursor: pointer; margin-bottom: 14px; display: flex; align-items: center; gap: 4px; padding: 0; }
+  .summary-bar { background: white; border-radius: 12px; border: 1px solid var(--border); padding: 14px; margin-bottom: 12px; display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; text-align: center; }
+  .stat-label { font-size: 10px; color: var(--gray-med); text-transform: uppercase; }
+  .stat-value { font-size: 20px; font-weight: 700; color: var(--black); }
+  .job-card { background: white; border: 1px solid var(--border); border-radius: 10px; padding: 14px; margin-bottom: 10px; cursor: pointer; }
+  .job-card.open { border-left: 4px solid var(--green-dark); }
+  .job-card.closed { border-left: 4px solid var(--gray-med); opacity: 0.75; }
+  .job-card .job-lead { font-size: 18px; font-weight: 700; }
+  .job-card .job-meta { font-size: 12px; color: var(--gray-med); margin-top: 2px; }
+  .job-card .job-status { font-size: 11px; font-weight: 600; padding: 3px 8px; border-radius: 20px; float: right; }
+  .job-card.open .job-status { background: var(--green-light); color: var(--green-dark); }
+  .job-card.closed .job-status { background: var(--gray-light); color: var(--gray-med); }
+  .material-row { display: flex; align-items: center; gap: 8px; padding: 10px 0; border-bottom: 1px solid var(--gray-light); }
+  .material-row:last-child { border-bottom: none; }
+  .material-row .mat-name { flex: 1; font-size: 14px; font-weight: 600; }
+  .material-row .mat-qty { font-size: 13px; color: var(--gray-med); width: 60px; text-align: right; }
+  .material-row input { width: 70px; padding: 6px 8px; border: 1px solid var(--border); border-radius: 6px; font-size: 15px; text-align: center; }
+
+  /* SECTION TABS */
+  .section-tabs { display: flex; gap: 6px; margin-bottom: 14px; overflow-x: auto; padding-bottom: 2px; }
+  .section-tab { padding: 8px 14px; border: 1px solid var(--border); border-radius: 20px; font-size: 13px; font-weight: 600; background: white; color: var(--gray-med); cursor: pointer; white-space: nowrap; flex-shrink: 0; }
+  .section-tab.active { background: var(--amber); border-color: var(--amber-dark); color: var(--amber-dark); }
+
+  /* COLOR / ITEM ROWS */
+  .color-btn { background: white; border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; margin-bottom: 8px; }
+  .color-btn .cname { font-size: 15px; font-weight: 600; }
+  .color-btn .cprog { font-size: 12px; color: var(--gray-med); }
+  .color-btn.complete { border-color: var(--green-dark); background: var(--green-light); }
+  .color-btn.complete .cname { color: var(--green-dark); }
+  .item-row { background: white; border: 1px solid var(--border); border-radius: 10px; padding: 13px 15px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; margin-bottom: 8px; }
+  .item-row.counted { border-color: var(--green-dark); }
+  .item-row .iname { font-size: 15px; font-weight: 600; }
+  .item-row .icount { font-size: 17px; font-weight: 700; color: var(--green-dark); }
+  .item-row .ipending { font-size: 13px; color: var(--gray-med); font-style: italic; }
+
+  /* COUNT ENTRY */
+  .item-name-big { font-size: 38px; font-weight: 700; line-height: 1; margin-bottom: 4px; }
+  .color-name-sub { font-size: 15px; color: var(--gray-med); margin-bottom: 14px; }
+  .upb-badge { display: inline-block; background: var(--green-light); color: var(--green-dark); font-size: 13px; font-weight: 600; padding: 5px 12px; border-radius: 8px; margin-bottom: 18px; }
+  .count-input-group { background: var(--gray-light); border-radius: 10px; padding: 12px; margin-bottom: 10px; }
+  .count-input-group label { font-size: 11px; color: var(--gray-med); display: block; margin-bottom: 4px; }
+  .count-input-group input { width: 100%; font-size: 32px; font-weight: 700; border: none; background: transparent; color: var(--black); outline: none; }
+  .count-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .total-display { background: var(--green-light); border-radius: 10px; padding: 14px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+  .total-display .tlabel { font-size: 13px; color: var(--green-dark); font-weight: 600; }
+  .total-display .tvalue { font-size: 34px; font-weight: 700; color: var(--green-dark); }
+  .success-msg { display: none; background: var(--green-light); color: var(--green-dark); border-radius: 10px; padding: 12px; text-align: center; font-weight: 600; margin-top: 10px; }
+
+  /* DASHBOARD */
+  .dash-controls { display: flex; gap: 6px; margin-bottom: 12px; flex-wrap: wrap; }
+  .dash-controls select { flex: 1; min-width: 100px; padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px; font-size: 13px; background: white; }
+  .filter-btn { padding: 8px 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 12px; background: white; cursor: pointer; }
+  .filter-btn.active { background: var(--amber); border-color: var(--amber-dark); color: var(--amber-dark); font-weight: 600; }
+  .inv-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .inv-table th { text-align: left; padding: 7px 6px; font-size: 10px; color: var(--gray-med); text-transform: uppercase; border-bottom: 1px solid var(--border); }
+  .inv-table td { padding: 8px 6px; border-bottom: 1px solid #f0efe9; }
+  .inv-table tr:last-child td { border-bottom: none; }
+  .good { color: var(--green-dark); font-weight: 700; }
+  .warn { color: #c47900; font-weight: 700; }
+  .bad { color: var(--red); font-weight: 700; }
+  .tag { display: inline-block; font-size: 10px; font-weight: 600; padding: 2px 7px; border-radius: 20px; }
+  .tag-green { background: var(--green-light); color: var(--green-dark); }
+  .tag-gray { background: var(--gray-light); color: var(--gray-med); }
+  .divider { border: none; border-top: 1px solid var(--border); margin: 14px 0; }
+  .empty-state { text-align: center; padding: 40px 20px; color: var(--gray-med); font-size: 14px; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1 id="header-title">Englert Inventory</h1>
+  <button class="nav-btn" id="nav-btn" style="display:none"></button>
+</div>
+
+<div class="bottom-nav">
+  <button onclick="navTo('inventory')" id="bnav-inventory"><span class="bnav-icon">📦</span>Count</button>
+  <button onclick="navTo('jobs')" id="bnav-jobs"><span class="bnav-icon">🔨</span>Jobs</button>
+  <button onclick="navTo('dashboard')" id="bnav-dashboard"><span class="bnav-icon">📊</span>Dashboard</button>
+  <button onclick="navTo('report')" id="bnav-report"><span class="bnav-icon">📄</span>Report</button>
+</div>
+
+<!-- ===== INVENTORY HOME ===== -->
+<div class="view" id="view-inventory">
+  <div class="section-tabs" id="count-tabs"></div>
+  <div id="count-section-content"></div>
+  <button class="btn-danger" style="margin-top:8px" onclick="confirmReset('inventory')">Reset all counts</button>
+</div>
+
+<!-- INVENTORY: ITEM LIST (for a color under gutter items) -->
+<div class="view" id="view-items">
+  <button class="back-btn" id="items-back-btn" onclick="navTo('inventory')">← Back</button>
+  <div id="item-list-container"></div>
+</div>
+
+<!-- INVENTORY: COUNT ENTRY -->
+<div class="view" id="view-count">
+  <button class="back-btn" id="count-back-btn" onclick="backToItems()">← Back</button>
+  <div class="card">
+    <div class="color-name-sub" id="entry-color"></div>
+    <div class="item-name-big" id="entry-item"></div>
+    <div class="upb-badge" id="entry-upb"></div>
+    <div class="count-input-group">
+      <label>Locked boxes (pre-counted)</label>
+      <input type="number" id="locked-boxes" min="0" placeholder="0" oninput="calcTotal()">
+    </div>
+    <div class="count-row">
+      <div class="count-input-group">
+        <label>Full boxes (front)</label>
+        <input type="number" id="front-boxes" min="0" placeholder="0" oninput="calcTotal()">
+      </div>
+      <div class="count-input-group">
+        <label>Loose units</label>
+        <input type="number" id="loose-units" min="0" placeholder="0" oninput="calcTotal()">
+      </div>
+    </div>
+    <div class="total-display">
+      <div class="tlabel">Total on hand</div>
+      <div class="tvalue" id="total-units">0</div>
+    </div>
+    <button class="btn-primary" onclick="submitCount()">Save Count</button>
+    <div class="success-msg" id="success-msg">✓ Saved!</div>
+  </div>
+</div>
+
+<!-- ===== JOBS ===== -->
+<div class="view" id="view-jobs">
+  <div class="section-header">Jobs</div>
+  <button class="btn-amber" onclick="showNewJob()" style="margin-bottom:14px;margin-top:0;">+ New Job</button>
+  <div id="jobs-list"></div>
+</div>
+
+<div class="view" id="view-new-job">
+  <button class="back-btn" onclick="navTo('jobs')">← Jobs</button>
+  <div class="section-header">New Job</div>
+  <div class="card">
+    <div class="input-group"><label>Lead Number</label><input type="text" id="new-lead" placeholder="e.g. 10482"></div>
+    <div class="input-group"><label>Installer First Name</label><input type="text" id="new-installer" placeholder="e.g. Mike"></div>
+    <div class="input-group"><label>Date</label><input type="date" id="new-date"></div>
+    <div class="input-group"><label>Color</label><select id="new-color"><option value="">Select color...</option></select></div>
+    <button class="btn-primary" onclick="createJob()">Create Job & Log Pull</button>
+  </div>
+</div>
+
+<div class="view" id="view-pull">
+  <button class="back-btn" onclick="navTo('jobs')">← Jobs</button>
+  <div class="card" style="margin-bottom:12px">
+    <div class="card-title">Material Pull</div>
+    <div id="pull-job-info" style="font-size:16px;font-weight:700;"></div>
+    <div id="pull-job-meta" style="font-size:12px;color:var(--gray-med);margin-top:2px;"></div>
+  </div>
+  <div class="card">
+    <div class="card-title">Enter quantities being pulled</div>
+    <div id="pull-items-list"></div>
+    <button class="btn-primary" style="margin-top:12px" onclick="savePull()">Save Pull</button>
+  </div>
+</div>
+
+<div class="view" id="view-job-detail">
+  <button class="back-btn" onclick="navTo('jobs')">← Jobs</button>
+  <div id="job-detail-content"></div>
+</div>
+
+<div class="view" id="view-closeout">
+  <button class="back-btn" onclick="showJobDetail(currentJobId)">← Job</button>
+  <div class="card" style="margin-bottom:12px">
+    <div class="card-title">Close Out Job</div>
+    <div id="closeout-job-info" style="font-size:16px;font-weight:700;"></div>
+    <div id="closeout-job-meta" style="font-size:12px;color:var(--gray-med);margin-top:2px;"></div>
+  </div>
+  <div class="card">
+    <div class="card-title" style="margin-bottom:10px;">Items returned</div>
+    <div id="closeout-returned"></div>
+  </div>
+  <div class="card">
+    <div class="card-title" style="margin-bottom:10px;">Damaged</div>
+    <div id="closeout-damaged"></div>
+  </div>
+  <div class="card">
+    <div class="input-group"><label>Notes (optional)</label><input type="text" id="closeout-notes" placeholder="Any notes..."></div>
+    <button class="btn-primary" onclick="saveCloseout()">Close Out Job</button>
+  </div>
+</div>
+
+<!-- ===== DASHBOARD ===== -->
+<div class="view" id="view-dashboard">
+  <div class="section-header">Dashboard</div>
+  <div class="summary-bar" id="dash-summary"></div>
+  <div class="dash-controls">
+    <select id="dash-color-filter" onchange="renderDashboard()">
+      <option value="">All colors</option>
+    </select>
+    <button class="filter-btn active" id="fbtn-all" onclick="setDashFilter('all')">All</button>
+    <button class="filter-btn" id="fbtn-counted" onclick="setDashFilter('counted')">Counted</button>
+    <button class="filter-btn" id="fbtn-issues" onclick="setDashFilter('issues')">Issues</button>
+  </div>
+  <div class="card" style="padding:0;overflow:hidden;overflow-x:auto;">
+    <table class="inv-table">
+      <thead><tr><th>Item</th><th>Color/Type</th><th>On Hand</th><th>Pulled</th><th>Returned</th><th>Net Used</th><th>Damaged</th><th>Deviation</th></tr></thead>
+      <tbody id="dash-tbody"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ===== REPORT ===== -->
+<div class="view" id="view-report">
+  <div class="section-header">Reports</div>
+  <div class="card">
+    <div class="card-title">Inventory Report</div>
+    <p style="font-size:13px;color:var(--gray-med);margin-bottom:12px;">Full count — all colors and items</p>
+    <button class="btn-primary" onclick="exportInventoryReport()">📄 Print Inventory Report</button>
+  </div>
+  <div class="card">
+    <div class="card-title">Job Activity Report</div>
+    <p style="font-size:13px;color:var(--gray-med);margin-bottom:12px;">All jobs with pulls, returns, deviations</p>
+    <button class="btn-primary" onclick="exportJobReport()">📄 Print Job Report</button>
+  </div>
+  <div class="card">
+    <div class="card-title">Deviation Report</div>
+    <p style="font-size:13px;color:var(--gray-med);margin-bottom:12px;">Items where actual differs from expected</p>
+    <button class="btn-primary" onclick="exportDeviationReport()">📄 Print Deviation Report</button>
+  </div>
+  <div class="card">
+    <div class="card-title" style="color:var(--red)">Reset Data</div>
+    <button class="btn-danger" onclick="confirmReset('all')">Reset Everything</button>
+    <button class="btn-danger" style="margin-top:6px" onclick="confirmReset('jobs')">Reset Jobs Only</button>
+    <button class="btn-danger" style="margin-top:6px" onclick="confirmReset('inventory')">Reset Counts Only</button>
+  </div>
+</div>
+
+<script>
+// ===================== DATA =====================
+const COLORS = ["White","Coal Grey","Green","Brown","Wicker","Egg Shell","Musket","Cream","Tan","Terratone","Red","Clay","Ivory","Light Grey"];
+
+// Main gutter items (counted by color)
+const GUTTER_ITEMS = [
+  {name:"A Elbow", upb:32, unit:"units"},
+  {name:"B Elbow", upb:32, unit:"units"},
+  {name:"C Elbow", upb:24, unit:"units"},
+  {name:"Pipe Clip", upb:65, unit:"units"},
+  {name:"Endcap Left", upb:44, unit:"units"},
+  {name:"Endcap Right", upb:44, unit:"units"},
+  {name:"Box Miter", upb:16, unit:"units"},
+  {name:"Strip Miter", upb:20, unit:"units"},
+  {name:"ISHV", upb:16, unit:"units"},
+  {name:"Inline", upb:10, unit:"units"},
+  {name:"Drain Defender", upb:15, unit:"units"},
+  {name:"Big Mouth", upb:25, unit:"units"},
+];
+
+// White-specific items (replaces Drain Defender with two variants)
+const WHITE_GUTTER_ITEMS = [
+  {name:"A Elbow", upb:32, unit:"units"},
+  {name:"B Elbow", upb:32, unit:"units"},
+  {name:"C Elbow", upb:24, unit:"units"},
+  {name:"Pipe Clip", upb:65, unit:"units"},
+  {name:"Endcap Left", upb:44, unit:"units"},
+  {name:"Endcap Right", upb:44, unit:"units"},
+  {name:"Box Miter", upb:16, unit:"units"},
+  {name:"Strip Miter", upb:20, unit:"units"},
+  {name:"ISHV", upb:16, unit:"units"},
+  {name:"Inline", upb:10, unit:"units"},
+  {name:"Drain Defender (Old)", upb:30, unit:"units"},
+  {name:"Drain Defender (New)", upb:16, unit:"units"},
+  {name:"Big Mouth", upb:25, unit:"units"},
+];
+
+function getItemsForColor(color) {
+  return color === "White" ? WHITE_GUTTER_ITEMS : GUTTER_ITEMS;
+}
+
+// Separate sections — each has colors as the "items"
+const SEPARATE_SECTIONS = [
+  { id:"downspouts", label:"Downspouts", upb:10, unit:"units", byColor:true },
+  { id:"screws",     label:"Screws",     upb:1,  unit:"boxes", byColor:false },
+  { id:"touchup",    label:"Touch up Paint", upb:1, unit:"cans", byColor:false },
+  { id:"trimcoil",   label:"Trim Coil",  upb:1,  unit:"feet", byColor:false },
+];
+
+// All items for jobs (combined)
+const ALL_ITEMS = [
+  ...GUTTER_ITEMS,
+  {name:"Downspouts", upb:10, unit:"units"},
+  {name:"Screws", upb:1, unit:"boxes"},
+  {name:"Touch up Paint", upb:1, unit:"cans"},
+  {name:"Trim Coil", upb:1, unit:"feet"},
+];
+
+let counts = {};
+let jobs = [];
+let currentColor = null;
+let currentItem = null;
+let currentSection = 'gutter';
+let currentJobId = null;
+let dashFilter = 'all';
+let countBackTarget = 'inventory';
+
+function save() {
+  try { localStorage.setItem('eng_counts', JSON.stringify(counts)); localStorage.setItem('eng_jobs', JSON.stringify(jobs)); } catch(e){}
+}
+function load() {
+  try {
+    const c = localStorage.getItem('eng_counts'); const j = localStorage.getItem('eng_jobs');
+    if(c) counts = JSON.parse(c); if(j) jobs = JSON.parse(j);
+  } catch(e){}
+}
+function countKey(section, key) { return section+'||'+key; }
+function getCount(section, key) { const v = counts[countKey(section,key)]; return v!==undefined?v:null; }
+function setCount(section, key, val) { counts[countKey(section,key)]=val; save(); }
+function genId() { return Date.now().toString(36)+Math.random().toString(36).substr(2,4); }
+
+// ===================== NAV =====================
+function showView(id) {
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+  const el=document.getElementById(id);
+  if(el){el.classList.add('active');window.scrollTo(0,0);}
+}
+
+function navTo(section) {
+  ['inventory','jobs','dashboard','report'].forEach(s=>{
+    const el=document.getElementById('bnav-'+s);
+    if(el) el.classList.toggle('active',s===section);
+  });
+  if(section==='inventory'){
+    document.getElementById('header-title').textContent='Count Inventory';
+    renderCountHome();
+    showView('view-inventory');
+  } else if(section==='jobs'){
+    document.getElementById('header-title').textContent='Jobs';
+    renderJobsList();
+    showView('view-jobs');
+  } else if(section==='dashboard'){
+    document.getElementById('header-title').textContent='Dashboard';
+    renderDashboard();
+    showView('view-dashboard');
+  } else if(section==='report'){
+    document.getElementById('header-title').textContent='Reports';
+    showView('view-report');
+  }
+}
+
+// ===================== INVENTORY HOME =====================
+function renderCountHome() {
+  // Build tabs
+  const tabs = document.getElementById('count-tabs');
+  const sections = [{id:'gutter',label:'Gutter Items'}, ...SEPARATE_SECTIONS.map(s=>({id:s.id,label:s.label}))];
+  tabs.innerHTML = '';
+  sections.forEach(s => {
+    const btn = document.createElement('button');
+    btn.className = 'section-tab'+(s.id===currentSection?' active':'');
+    btn.textContent = s.label;
+    btn.onclick = () => { currentSection=s.id; renderCountHome(); };
+    tabs.appendChild(btn);
+  });
+  renderCountSection();
+}
+
+function renderCountSection() {
+  const content = document.getElementById('count-section-content');
+  content.innerHTML = '';
+
+  if(currentSection === 'gutter') {
+    // Show color grid
+    COLORS.forEach(color => {
+      const counted = GUTTER_ITEMS.filter(i=>getCount('gutter_'+color, i.name)!==null).length;
+      const complete = counted===GUTTER_ITEMS.length;
+      const btn = document.createElement('div');
+      btn.className = 'color-btn'+(complete?' complete':'');
+      btn.innerHTML = '<div class="cname">'+color+'</div><div class="cprog">'+counted+'/'+itemList.length+' items</div>';
+      btn.onclick = () => showGutterItems(color);
+      content.appendChild(btn);
+    });
+  } else {
+    const sec = SEPARATE_SECTIONS.find(s=>s.id===currentSection);
+    if(sec.byColor) {
+      // Downspouts — show each color as a row
+      COLORS.forEach(color => {
+        const val = getCount(sec.id, color);
+        const row = document.createElement('div');
+        row.className = 'item-row'+(val!==null?' counted':'');
+        row.innerHTML = '<div class="iname">'+color+'</div>'+(val!==null?'<div class="icount">'+val.toLocaleString()+'</div>':'<div class="ipending">tap to count</div>');
+        row.onclick = () => showSeparateEntry(sec, color);
+        content.appendChild(row);
+      });
+    } else {
+      // Single item — screws, touchup, trimcoil
+      const val = getCount(sec.id, 'total');
+      const row = document.createElement('div');
+      row.className = 'item-row'+(val!==null?' counted':'');
+      row.innerHTML = '<div class="iname">'+sec.label+'</div>'+(val!==null?'<div class="icount">'+val.toLocaleString()+'</div>':'<div class="ipending">tap to count</div>');
+      row.onclick = () => showSeparateEntry(sec, 'total');
+      content.appendChild(row);
+    }
+  }
+}
+
+function showGutterItems(color) {
+  currentColor = color;
+  countBackTarget = 'inventory';
+  document.getElementById('header-title').textContent = color;
+  const container = document.getElementById('item-list-container');
+  const counted = GUTTER_ITEMS.filter(i=>getCount('gutter_'+color,i.name)!==null).length;
+  container.innerHTML = '<div class="card" style="margin-bottom:10px"><div class="card-title">'+color+'</div><div style="font-size:14px;font-weight:600">'+counted+' of '+itemList.length+' items counted</div></div>';
+  itemList.forEach(itm => {
+    const val = getCount('gutter_'+color, itm.name);
+    const row = document.createElement('div');
+    row.className = 'item-row'+(val!==null?' counted':'');
+    row.innerHTML = '<div class="iname">'+itm.name+'</div>'+(val!==null?'<div class="icount">'+val.toLocaleString()+'</div>':'<div class="ipending">tap to count</div>');
+    row.onclick = () => showCountEntry('gutter_'+color, itm.name, itm, color+' — '+itm.name, color);
+    container.appendChild(row);
+  });
+  showView('view-items');
+}
+
+function showSeparateEntry(sec, key) {
+  const label = sec.byColor ? sec.label+' — '+key : sec.label;
+  const sub = sec.byColor ? key : sec.label;
+  showCountEntry(sec.id, key, {name:label, upb:sec.upb, unit:sec.unit}, label, sub);
+  countBackTarget = 'inventory';
+}
+
+function showCountEntry(sectionKey, itemKey, itm, displayName, colorSub) {
+  currentColor = sectionKey;
+  currentItem = itemKey;
+  document.getElementById('entry-color').textContent = (colorSub||'').toUpperCase();
+  document.getElementById('entry-item').textContent = displayName||itemKey;
+  const lbl = itm.unit==='boxes'?'Count by boxes':itm.unit==='feet'?'Count in feet':itm.unit==='cans'?'Count in cans':'Units per full box: '+itm.upb;
+  document.getElementById('entry-upb').textContent = lbl;
+  document.getElementById('locked-boxes').value='';
+  document.getElementById('front-boxes').value='';
+  document.getElementById('loose-units').value='';
+  document.getElementById('total-units').textContent='0';
+  document.getElementById('success-msg').style.display='none';
+  // Store upb for calc
+  document.getElementById('locked-boxes').dataset.upb = itm.upb;
+  showView('view-count');
+}
+
+function backToItems() {
+  if(currentSection==='gutter') {
+    showGutterItems(currentColor.replace('gutter_',''));
+  } else {
+    navTo('inventory');
+  }
+}
+
+function calcTotal() {
+  const upb = parseInt(document.getElementById('locked-boxes').dataset.upb)||1;
+  const locked = parseInt(document.getElementById('locked-boxes').value)||0;
+  const front = parseInt(document.getElementById('front-boxes').value)||0;
+  const loose = parseInt(document.getElementById('loose-units').value)||0;
+  const total = upb>1?(locked*upb)+(front*upb)+loose:locked+front+loose;
+  document.getElementById('total-units').textContent=total.toLocaleString();
+}
+
+function submitCount() {
+  const total = parseInt(document.getElementById('total-units').textContent.replace(/,/g,''))||0;
+  setCount(currentColor, currentItem, total);
+  const msg=document.getElementById('success-msg');
+  msg.style.display='block';
+  setTimeout(()=>{msg.style.display='none'; backToItems();},1000);
+}
+
+// ===================== JOBS =====================
+function renderJobsList() {
+  const container=document.getElementById('jobs-list');
+  if(!jobs.length){container.innerHTML='<div class="empty-state">No jobs yet.<br>Tap + New Job to get started.</div>';return;}
+  const sorted=[...jobs].sort((a,b)=>new Date(b.date)-new Date(a.date));
+  container.innerHTML='';
+  sorted.forEach(job=>{
+    const card=document.createElement('div');
+    card.className='job-card '+(job.closed?'closed':'open');
+    const totalPulled=(job.pull||[]).reduce((s,p)=>s+p.qty,0);
+    const totalReturned=(job.returned||[]).reduce((s,p)=>s+p.qty,0);
+    card.innerHTML='<span class="job-status">'+(job.closed?'Closed':'Open')+'</span><div class="job-lead">Lead #'+job.lead+'</div><div class="job-meta">'+job.installer+' · '+job.color+' · '+job.date+'</div><div class="job-meta" style="margin-top:4px">Pulled: '+totalPulled+' · Returned: '+totalReturned+'</div>';
+    card.onclick=()=>showJobDetail(job.id);
+    container.appendChild(card);
+  });
+}
+
+function showNewJob() {
+  document.getElementById('new-lead').value='';
+  document.getElementById('new-installer').value='';
+  document.getElementById('new-date').value=new Date().toISOString().split('T')[0];
+  const sel=document.getElementById('new-color');
+  sel.innerHTML='<option value="">Select color...</option>';
+  COLORS.forEach(c=>{const o=document.createElement('option');o.value=c;o.textContent=c;sel.appendChild(o);});
+  document.getElementById('header-title').textContent='New Job';
+  showView('view-new-job');
+}
+
+function createJob() {
+  const lead=document.getElementById('new-lead').value.trim();
+  const installer=document.getElementById('new-installer').value.trim();
+  const date=document.getElementById('new-date').value;
+  const color=document.getElementById('new-color').value;
+  if(!lead||!installer||!color){alert('Please fill in all fields.');return;}
+  const job={id:genId(),lead,installer,date,color,pull:[],returned:[],damaged:[],notes:'',closed:false,createdAt:new Date().toISOString()};
+  jobs.push(job); save();
+  currentJobId=job.id;
+  showPullScreen(job.id);
+}
+
+function showPullScreen(jobId) {
+  currentJobId=jobId;
+  const job=jobs.find(j=>j.id===jobId);
+  document.getElementById('header-title').textContent='Pull — Lead #'+job.lead;
+  document.getElementById('pull-job-info').textContent='Lead #'+job.lead+' · '+job.color;
+  document.getElementById('pull-job-meta').textContent=job.installer+' · '+job.date;
+  const list=document.getElementById('pull-items-list');
+  list.innerHTML='';
+  ALL_ITEMS.forEach(itm=>{
+    const existing=(job.pull||[]).find(p=>p.item===itm.name);
+    const row=document.createElement('div');
+    row.className='material-row';
+    row.innerHTML='<div class="mat-name">'+itm.name+'</div><input type="number" min="0" placeholder="0" id="pull-'+itm.name.replace(/[\s\/]/g,'_')+'" value="'+(existing?existing.qty:'')+'">';
+    list.appendChild(row);
+  });
+  showView('view-pull');
+}
+
+function savePull() {
+  const job=jobs.find(j=>j.id===currentJobId);
+  job.pull=[];
+  ALL_ITEMS.forEach(itm=>{
+    const input=document.getElementById('pull-'+itm.name.replace(/[\s\/]/g,'_'));
+    const qty=parseInt(input?input.value:0)||0;
+    if(qty>0) job.pull.push({item:itm.name,qty});
+  });
+  save(); showJobDetail(currentJobId);
+}
+
+function showJobDetail(jobId) {
+  currentJobId=jobId;
+  const job=jobs.find(j=>j.id===jobId);
+  document.getElementById('header-title').textContent='Lead #'+job.lead;
+  const totalPulled=(job.pull||[]).reduce((s,p)=>s+p.qty,0);
+  const totalReturned=(job.returned||[]).reduce((s,p)=>s+p.qty,0);
+  const totalDamaged=(job.damaged||[]).reduce((s,p)=>s+p.qty,0);
+  const netUsed=totalPulled-totalReturned-totalDamaged;
+  let pullRows=(job.pull||[]).map(p=>'<div class="material-row"><div class="mat-name">'+p.item+'</div><div class="mat-qty">'+p.qty+'</div></div>').join('')||'<div style="color:var(--gray-med);font-size:13px">No items pulled</div>';
+  let retRows=(job.returned||[]).map(p=>'<div class="material-row"><div class="mat-name">'+p.item+'</div><div class="mat-qty">'+p.qty+'</div></div>').join('')||'<div style="color:var(--gray-med);font-size:13px">None recorded</div>';
+  let dmgRows=(job.damaged||[]).map(p=>'<div class="material-row"><div class="mat-name">'+p.item+'</div><div class="mat-qty">'+p.qty+'</div></div>').join('')||'<div style="color:var(--gray-med);font-size:13px">None recorded</div>';
+  document.getElementById('job-detail-content').innerHTML=`
+    <div class="card" style="margin-bottom:10px">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start">
+        <div><div style="font-size:20px;font-weight:700">Lead #${job.lead}</div><div style="font-size:13px;color:var(--gray-med)">${job.installer} · ${job.color} · ${job.date}</div></div>
+        <span class="tag ${job.closed?'tag-gray':'tag-green'}">${job.closed?'Closed':'Open'}</span>
+      </div>
+      <hr class="divider">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;text-align:center">
+        <div><div class="stat-label">Pulled</div><div style="font-size:20px;font-weight:700">${totalPulled}</div></div>
+        <div><div class="stat-label">Returned</div><div style="font-size:20px;font-weight:700">${totalReturned}</div></div>
+        <div><div class="stat-label">Damaged</div><div style="font-size:20px;font-weight:700;color:var(--red)">${totalDamaged}</div></div>
+        <div><div class="stat-label">Net Used</div><div style="font-size:20px;font-weight:700;color:var(--green-dark)">${netUsed}</div></div>
+      </div>
+      ${job.notes?'<div style="margin-top:10px;font-size:12px;color:var(--gray-med)">Notes: '+job.notes+'</div>':''}
+    </div>
+    <div class="card"><div class="card-title">Material Pull</div>${pullRows}${!job.closed?'<button class="btn-secondary" onclick="showPullScreen(\''+job.id+'\')">Edit Pull</button>':''}</div>
+    <div class="card"><div class="card-title">Returns</div>${retRows}</div>
+    <div class="card"><div class="card-title">Damaged</div>${dmgRows}</div>
+    ${!job.closed?'<button class="btn-primary" onclick="showCloseout(\''+job.id+'\')">Close Out Job</button>':''}
+    <button class="btn-danger" onclick="deleteJob(\''+job.id+'\')">Delete Job</button>`;
+  showView('view-job-detail');
+}
+
+function showCloseout(jobId) {
+  currentJobId=jobId;
+  const job=jobs.find(j=>j.id===jobId);
+  document.getElementById('closeout-job-info').textContent='Lead #'+job.lead+' · '+job.color;
+  document.getElementById('closeout-job-meta').textContent=job.installer+' · '+job.date;
+  const retList=document.getElementById('closeout-returned');
+  const dmgList=document.getElementById('closeout-damaged');
+  retList.innerHTML=''; dmgList.innerHTML='';
+  ALL_ITEMS.forEach(itm=>{
+    const pulled=(job.pull||[]).find(p=>p.item===itm.name);
+    if(!pulled) return;
+    const existRet=(job.returned||[]).find(p=>p.item===itm.name);
+    const existDmg=(job.damaged||[]).find(p=>p.item===itm.name);
+    const safeId=itm.name.replace(/[\s\/]/g,'_');
+    retList.innerHTML+='<div class="material-row"><div class="mat-name">'+itm.name+'<div style="font-size:11px;color:var(--gray-med)">pulled: '+pulled.qty+'</div></div><input type="number" min="0" placeholder="0" id="ret-'+safeId+'" value="'+(existRet?existRet.qty:'')+'"></div>';
+    dmgList.innerHTML+='<div class="material-row"><div class="mat-name">'+itm.name+'</div><input type="number" min="0" placeholder="0" id="dmg-'+safeId+'" value="'+(existDmg?existDmg.qty:'')+'"></div>';
+  });
+  document.getElementById('closeout-notes').value=job.notes||'';
+  showView('view-closeout');
+}
+
+function saveCloseout() {
+  const job=jobs.find(j=>j.id===currentJobId);
+  job.returned=[]; job.damaged=[];
+  ALL_ITEMS.forEach(itm=>{
+    const safeId=itm.name.replace(/[\s\/]/g,'_');
+    const retEl=document.getElementById('ret-'+safeId);
+    const dmgEl=document.getElementById('dmg-'+safeId);
+    if(retEl){const q=parseInt(retEl.value)||0;if(q>0)job.returned.push({item:itm.name,qty:q});}
+    if(dmgEl){const q=parseInt(dmgEl.value)||0;if(q>0)job.damaged.push({item:itm.name,qty:q});}
+  });
+  job.notes=document.getElementById('closeout-notes').value;
+  job.closed=true; job.closedAt=new Date().toISOString();
+  save(); showJobDetail(currentJobId);
+}
+
+function deleteJob(jobId) {
+  if(!confirm('Delete this job?')) return;
+  jobs=jobs.filter(j=>j.id!==jobId); save(); navTo('jobs');
+}
+
+// ===================== DASHBOARD =====================
+function setDashFilter(f) {
+  dashFilter=f;
+  ['all','counted','issues'].forEach(x=>document.getElementById('fbtn-'+x).classList.toggle('active',x===f));
+  renderDashboard();
+}
+
+function renderDashboard() {
+  const sel=document.getElementById('dash-color-filter');
+  if(sel.options.length===1){COLORS.forEach(c=>{const o=document.createElement('option');o.value=c;o.textContent=c;sel.appendChild(o);});}
+  const filterColor=sel.value;
+  let totalOnHand=0,totalPulled=0,totalReturned=0,totalDamaged=0;
+  const tbody=document.getElementById('dash-tbody');
+  tbody.innerHTML='';
+
+  // Gutter items by color
+  COLORS.forEach(color=>{
+    if(filterColor&&filterColor!==color) return;
+    getItemsForColor(color).forEach(itm=>{
+      const onHand=getCount('gutter_'+color,itm.name);
+      let pulled=0,returned=0,damaged=0;
+      jobs.forEach(job=>{
+        if(job.color!==color) return;
+        (job.pull||[]).forEach(p=>{if(p.item===itm.name)pulled+=p.qty;});
+        (job.returned||[]).forEach(p=>{if(p.item===itm.name)returned+=p.qty;});
+        (job.damaged||[]).forEach(p=>{if(p.item===itm.name)damaged+=p.qty;});
+      });
+      const netUsed=pulled-returned-damaged;
+      const deviation=onHand!==null&&pulled>0?onHand-netUsed:null;
+      if(dashFilter==='counted'&&onHand===null) return;
+      if(dashFilter==='issues'&&(deviation===null||Math.abs(deviation)<1)) return;
+      if(onHand!==null)totalOnHand+=onHand;
+      totalPulled+=pulled;totalReturned+=returned;totalDamaged+=damaged;
+      const devClass=deviation===null?'':deviation<0?'bad':deviation>0?'warn':'good';
+      const tr=document.createElement('tr');
+      tr.innerHTML='<td style="font-weight:600">'+itm.name+'</td><td style="color:var(--gray-med);font-size:11px">'+color+'</td><td>'+(onHand!==null?onHand:'—')+'</td><td>'+(pulled||'—')+'</td><td>'+(returned||'—')+'</td><td>'+(netUsed||'—')+'</td><td class="'+(damaged?'bad':'')+'">'+(damaged||'—')+'</td><td class="'+devClass+'">'+(deviation!==null?deviation:'—')+'</td>';
+      tbody.appendChild(tr);
+    });
+  });
+
+  // Separate sections
+  if(!filterColor) {
+    SEPARATE_SECTIONS.forEach(sec=>{
+      if(sec.byColor){
+        COLORS.forEach(color=>{
+          const onHand=getCount(sec.id,color);
+          if(dashFilter==='counted'&&onHand===null) return;
+          if(onHand!==null)totalOnHand+=onHand;
+          const tr=document.createElement('tr');
+          tr.innerHTML='<td style="font-weight:600">'+sec.label+'</td><td style="color:var(--gray-med);font-size:11px">'+color+'</td><td>'+(onHand!==null?onHand:'—')+'</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td>';
+          tbody.appendChild(tr);
+        });
+      } else {
+        const onHand=getCount(sec.id,'total');
+        if(dashFilter==='counted'&&onHand===null) return;
+        if(onHand!==null)totalOnHand+=onHand;
+        const tr=document.createElement('tr');
+        tr.innerHTML='<td style="font-weight:600">'+sec.label+'</td><td style="color:var(--gray-med);font-size:11px">Warehouse</td><td>'+(onHand!==null?onHand:'—')+'</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td>';
+        tbody.appendChild(tr);
+      }
+    });
+  }
+
+  document.getElementById('dash-summary').innerHTML='<div><div class="stat-label">On Hand</div><div class="stat-value">'+totalOnHand.toLocaleString()+'</div></div><div><div class="stat-label">Pulled</div><div class="stat-value">'+totalPulled.toLocaleString()+'</div></div><div><div class="stat-label">Net Used</div><div class="stat-value">'+(totalPulled-totalReturned-totalDamaged).toLocaleString()+'</div></div>';
+}
+
+// ===================== REPORTS =====================
+function exportInventoryReport() {
+  const now=new Date();
+  const dateStr=now.toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'});
+  const timeStr=now.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'});
+  let totalUnits=0,rows='';
+  COLORS.forEach(color=>{
+    let colorTotal=0,colorRows='';
+    getItemsForColor(color).forEach(itm=>{
+      const val=getCount('gutter_'+color,itm.name);
+      if(val!==null){colorTotal+=val;totalUnits+=val;}
+      colorRows+='<tr><td style="padding:5px 10px;font-size:12px;color:'+(val!==null?'#333':'#aaa')+'">'+itm.name+'</td><td style="padding:5px 10px;text-align:right;font-weight:600;color:'+(val!==null?'#085041':'#aaa')+'">'+(val!==null?val.toLocaleString():'—')+'</td></tr>';
+    });
+    rows+='<tr><td colspan="2" style="padding:8px 10px;background:#FAC775;font-weight:700;color:#633806;font-size:13px">'+color.toUpperCase()+'<span style="float:right">'+colorTotal.toLocaleString()+'</span></td></tr>'+colorRows;
+  });
+  // Separate sections
+  rows+='<tr><td colspan="2" style="padding:10px 10px 4px;font-weight:700;font-size:14px;border-top:2px solid #ccc">OTHER ITEMS</td></tr>';
+  SEPARATE_SECTIONS.forEach(sec=>{
+    if(sec.byColor){
+      rows+='<tr><td colspan="2" style="padding:6px 10px;background:#f5f5f3;font-weight:700;font-size:13px">'+sec.label.toUpperCase()+'</td></tr>';
+      COLORS.forEach(color=>{
+        const val=getCount(sec.id,color);
+        if(val!==null)totalUnits+=val;
+        rows+='<tr><td style="padding:5px 10px;font-size:12px;color:'+(val!==null?'#333':'#aaa')+'">'+color+'</td><td style="padding:5px 10px;text-align:right;font-weight:600;color:'+(val!==null?'#085041':'#aaa')+'">'+(val!==null?val.toLocaleString():'—')+'</td></tr>';
+      });
+    } else {
+      const val=getCount(sec.id,'total');
+      if(val!==null)totalUnits+=val;
+      rows+='<tr><td style="padding:5px 10px;font-size:12px;color:'+(val!==null?'#333':'#aaa')+'">'+sec.label+'</td><td style="padding:5px 10px;text-align:right;font-weight:600;color:'+(val!==null?'#085041':'#aaa')+'">'+(val!==null?val.toLocaleString():'—')+'</td></tr>';
+    }
+  });
+  openReport('Inventory Report',dateStr,timeStr,'<div style="margin-bottom:16px"><span style="background:#E1F5EE;color:#085041;padding:6px 14px;border-radius:8px;font-weight:700;font-size:16px">Total Units: '+totalUnits.toLocaleString()+'</span></div><table style="width:100%;border-collapse:collapse">'+rows+'</table>');
+}
+
+function exportJobReport() {
+  const now=new Date();
+  const dateStr=now.toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'});
+  const timeStr=now.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'});
+  if(!jobs.length){alert('No jobs recorded yet.');return;}
+  let rows='';
+  [...jobs].sort((a,b)=>new Date(b.date)-new Date(a.date)).forEach(job=>{
+    const pulled=(job.pull||[]).reduce((s,p)=>s+p.qty,0);
+    const returned=(job.returned||[]).reduce((s,p)=>s+p.qty,0);
+    const damaged=(job.damaged||[]).reduce((s,p)=>s+p.qty,0);
+    const net=pulled-returned-damaged;
+    const pullDetail=(job.pull||[]).map(p=>'<span style="display:inline-block;background:#f5f5f3;border-radius:4px;padding:2px 8px;margin:2px;font-size:11px">'+p.item+': '+p.qty+'</span>').join('');
+    rows+='<tr><td colspan="5" style="padding:10px 8px;background:#FAC775;font-weight:700;color:#633806">Lead #'+job.lead+' &nbsp;·&nbsp; '+job.installer+' &nbsp;·&nbsp; '+job.color+' &nbsp;·&nbsp; '+job.date+'<span style="float:right;background:'+(job.closed?'#ccc':'#085041')+';color:white;padding:2px 8px;border-radius:10px;font-size:11px">'+(job.closed?'Closed':'Open')+'</span></td></tr>';
+    rows+='<tr><td style="padding:6px 8px;font-size:12px;vertical-align:top"><b>Pulled ('+pulled+')</b><br>'+pullDetail+'</td><td style="padding:6px 8px;font-size:12px;text-align:center"><b>Returned</b><br>'+returned+'</td><td style="padding:6px 8px;font-size:12px;text-align:center"><b>Damaged</b><br><span style="color:'+(damaged?'#A32D2D':'#333')+'">'+damaged+'</span></td><td style="padding:6px 8px;font-size:12px;text-align:center"><b>Net Used</b><br><span style="color:#085041;font-weight:700">'+net+'</span></td><td style="padding:6px 8px;font-size:12px">'+(job.notes?'<i>'+job.notes+'</i>':'')+'</td></tr>';
+  });
+  openReport('Job Activity Report',dateStr,timeStr,'<table style="width:100%;border-collapse:collapse">'+rows+'</table>');
+}
+
+function exportDeviationReport() {
+  const now=new Date();
+  const dateStr=now.toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'});
+  const timeStr=now.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'});
+  let rows='',hasIssues=false;
+  COLORS.forEach(color=>{
+    getItemsForColor(color).forEach(itm=>{
+      const onHand=getCount('gutter_'+color,itm.name);
+      if(onHand===null) return;
+      let pulled=0,returned=0,damaged=0;
+      jobs.forEach(job=>{
+        if(job.color!==color) return;
+        (job.pull||[]).forEach(p=>{if(p.item===itm.name)pulled+=p.qty;});
+        (job.returned||[]).forEach(p=>{if(p.item===itm.name)returned+=p.qty;});
+        (job.damaged||[]).forEach(p=>{if(p.item===itm.name)damaged+=p.qty;});
+      });
+      const netUsed=pulled-returned-damaged;
+      const deviation=onHand-netUsed;
+      if(Math.abs(deviation)<1||!pulled) return;
+      hasIssues=true;
+      rows+='<tr><td style="padding:7px 8px;font-weight:600">'+itm.name+'</td><td style="padding:7px 8px;color:#888">'+color+'</td><td style="padding:7px 8px;text-align:center">'+onHand+'</td><td style="padding:7px 8px;text-align:center">'+netUsed+'</td><td style="padding:7px 8px;text-align:center;font-weight:700;color:'+(deviation<0?'#A32D2D':'#c47900')+'">'+deviation+'</td></tr>';
+    });
+  });
+  if(!hasIssues){alert('No deviations found. Everything looks clean!');return;}
+  openReport('Deviation Report',dateStr,timeStr,'<table style="width:100%;border-collapse:collapse"><thead><tr style="border-bottom:1px solid #ddd"><th style="padding:7px 8px;text-align:left;font-size:11px;color:#888">ITEM</th><th style="padding:7px 8px;text-align:left;font-size:11px;color:#888">COLOR</th><th style="padding:7px 8px;text-align:center;font-size:11px;color:#888">ON HAND</th><th style="padding:7px 8px;text-align:center;font-size:11px;color:#888">NET USED</th><th style="padding:7px 8px;text-align:center;font-size:11px;color:#888">DEVIATION</th></tr></thead><tbody>'+rows+'</tbody></table>');
+}
+
+function openReport(title,dateStr,timeStr,body) {
+  const html='<!DOCTYPE html><html><head><meta charset="utf-8"><title>'+title+'</title><style>*{box-sizing:border-box;margin:0;padding:0;}body{font-family:Helvetica,Arial,sans-serif;padding:24px;color:#1a1a18;}h1{font-size:20px;margin-bottom:4px;}p{font-size:12px;color:#888;margin-bottom:16px;}@media print{button{display:none;}}</style></head><body><h1>'+title+'</h1><p>Generated '+dateStr+' at '+timeStr+'</p>'+body+'<div style="text-align:center;margin-top:24px;"><button onclick="window.print()" style="background:#085041;color:white;border:none;border-radius:8px;padding:12px 28px;font-size:15px;font-weight:600;cursor:pointer;">Print</button></div></body></html>';
+  const blob=new Blob([html],{type:'text/html'});
+  window.open(URL.createObjectURL(blob),'_blank');
+}
+
+function confirmReset(type) {
+  const msg=type==='all'?'Reset ALL data?':type==='jobs'?'Reset all jobs?':'Reset all inventory counts?';
+  if(!confirm(msg+' This cannot be undone.')) return;
+  if(type==='all'||type==='inventory') counts={};
+  if(type==='all'||type==='jobs') jobs=[];
+  save(); navTo(type==='jobs'?'jobs':'inventory');
+}
+
+load();
+navTo('inventory');
+</script>
+</body>
+</html>
